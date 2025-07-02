@@ -1,1 +1,1 @@
-# LWC_hash_py
+# NIST Finalist LWC Hash Functions Implemented in Python
