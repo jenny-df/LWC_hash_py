@@ -139,6 +139,15 @@ def mix_column_serial(internal_state):
 
 
 def field_mult(a, b):
+    '''
+    Multiplies 2 field polynomials and ensures they remain in the field GF(2^4) using the polynomial x^4 + x + 1.
+
+    ARGS:
+        - a (int): the first field polynomial.
+        - b (int): the second field polynomial.
+    RETURNS:
+        - the product (int) of the field multiplication of a and b which is also in the field.
+    '''
     x = a
     ret = 0
 
@@ -158,6 +167,15 @@ def field_mult(a, b):
 
 
 def shuffle(internal_state):
+    '''
+    Flips the order of the first and second 4-bits in every byte in the internal state.
+
+    ARGS:
+        - internal_state (byte string/list): memory of the cryptographic algorithm (32 bytes).
+    RETURNS:
+        - the internal state (byte string) (32 bytes) with the 4-bit chunk order within a byte flipped.
+    '''
+
     shuffled_IS = b''
     for byte in internal_state:
         shuffled_IS += bytes([(get_4bits_ops[1](byte) << 4) + get_4bits_ops[0](byte)])
