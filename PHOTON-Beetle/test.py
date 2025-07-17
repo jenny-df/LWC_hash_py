@@ -14,8 +14,8 @@ def test_photon_beetle_hash_kat():
                 # no more KATs
                 break
 
-            if cnt != "Count = 106\n":
-                continue
+            # if cnt != "Count = 163\n":
+            #     continue
 
             msg = fd.readline()
             md = fd.readline()
@@ -44,5 +44,5 @@ def test_photon_beetle_hash_kat():
             ), f"[Photon-Beetle-Hash KAT {cnt}] expected {md}, found {digest} !"
             fd.readline()
 
-
-test_photon_beetle_hash_kat()
+if __name__ == "__main__":
+    test_photon_beetle_hash_kat()

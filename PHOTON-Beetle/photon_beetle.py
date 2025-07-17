@@ -8,7 +8,7 @@ def photon_beetle_hash_32(msg):
     Hashes the inputted message using the PHOTON-Beetle-HASH32 algorithm.
 
     ARGS:
-        - msg (string): the message that's being hashed (unspecified length).
+        - msg (bytes): the message that's being hashed (unspecified length).
     RETURNS:
         - the hash digest (32 bytes/256 bits) of the message created using the PHOTON-Beetle-HASH32 algorithm.
     '''
