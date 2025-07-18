@@ -44,6 +44,7 @@ def cf(left, right, msg):
     tbc_output = TBC_Skinny_128_384_plus(left_xored, tweakey)
     xor_in_place(right, [right, tbc_output, left_xored])
 
+
 def ipad(msg, desired_len):
     Z = len(msg) % desired_len
     return msg + bytes(desired_len - Z - 1) + bytes([Z])
