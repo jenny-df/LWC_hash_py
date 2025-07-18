@@ -14,7 +14,7 @@ def test_romulus_h_kat():
                 # no more KATs
                 break
 
-            # if cnt != "Count = 9\n":
+            # if cnt != "Count = 1\n":
             #     continue
 
             msg = fd.readline()

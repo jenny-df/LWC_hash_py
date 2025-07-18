@@ -1,19 +1,18 @@
 from utils import *
 
-DIGEST_LEN = 32
-BLOCK_SIZE = 32
-
 def romulus_h(msg):
-    left, right = 0, 0
-    for i in range(5): # TODO: fill
-        m_i = msg # TODO: splice msg
-        left, right = cf(left, right, m_i)
+    left, right = bytearray(L_R_SIZE), bytearray(L_R_SIZE)
+    msg_padded = ipad(msg, BLOCK_SIZE) 
+    
+    for i in range(0, len(msg_padded)-BLOCK_SIZE, BLOCK_SIZE):
+        m_i = msg_padded[i:i+BLOCK_SIZE]
+        cf(left, right, m_i)
 
-    m_last = msg # TODO: splice msg
-    left ^= 2
-    left, right = cf(left, right, m_last)
-    # right_bytes = right.to_bytes()
-    digest = left << 5 + right # TODO: figure out const other than 5
+    m_last = msg_padded[-BLOCK_SIZE:]
+    xor_in_place(left, [CONST_2])
+    cf(left, right, m_last)
+
+    digest = left + right
     return digest
 
 if __name__ == "__main__":
