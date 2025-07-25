@@ -1,4 +1,4 @@
-from xoodyak import *
+from xoodyak import xoodyak_hash_mode
 
 def test_xoodyak_hash_kat():
     """
@@ -7,7 +7,7 @@ def test_xoodyak_hash_kat():
 
     See https://csrc.nist.gov/projects/lightweight-cryptography/finalists
     """
-    with open("LWC_HASH_KAT_256.txt", "r") as fd:
+    with open("LWC_HASH_KAT_256.txt", "r", encoding="utf-8") as fd:
         while True:
             cnt = fd.readline()
             if not cnt:
@@ -16,7 +16,6 @@ def test_xoodyak_hash_kat():
 
             # if cnt != "Count = 18\n":
             #     continue
-            print(cnt)
 
             msg = fd.readline()
             md = fd.readline()
@@ -47,4 +46,4 @@ def test_xoodyak_hash_kat():
 
 if __name__ == "__main__":
     test_xoodyak_hash_kat()
-    print("PASSED ALL Romulus-H")
+    print("PASSED ALL Xoodyak Hash Tests")
