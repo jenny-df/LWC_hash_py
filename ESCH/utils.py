@@ -5,17 +5,19 @@ BYTE_MASK = 0xff
 TWO_BYTE_MASK = 0xffff
 
 
-def int_to_bytes(val):
-    num_bytes = (val.bit_length() + 7) // 8
+def int_to_bytes(val, num_bytes = None):
+    if num_bytes is None:
+        num_bytes = (val.bit_length() + 7) // 8
     bytes_val = val.to_bytes(num_bytes, byteorder='big')
     return bytes_val
 
 
 def pad(msg, rate):
     if len(msg) < rate:
-        i = (-(len(msg)+1)) % rate
-        padding = hex(1 << i)
-        msg += bytes.fromhex(padding[2:])
+        # i = (-(len(msg)+1)) % rate
+        # print(f"{i=}")
+        # padding = hex(1 << i)
+        msg += bytes(rate - len(msg) - 1) + bytes([0x80])
     return msg
 
 
@@ -27,7 +29,6 @@ def xor_in_place(original, vals):
 
 def split_x_and_y(internal_state):
     x_vals, y_vals = [], []
-
     for i in range(0, len(internal_state), 8):
         x_vals.append(internal_state[i:i+4])
         y_vals.append(internal_state[i+4:i+8])

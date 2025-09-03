@@ -47,6 +47,9 @@ def ascon(msg, hash_type, digest_len = 32):
         - msg (bytes): the message that's being hashed (unspecified length).
         - hash_type (string): The type of ASCON hash function to use.
         - digest_len (int): The number of bytes in the output.
+
+    Returns:
+        - The hash/digest (bytes) of the inputted message with the required/given length.
     """
 
     # INITIALIZE

@@ -9,33 +9,41 @@ FOUR_BYTE_MASK = SPARKLE_MAX_I - 1
 ALZETTE_SHIFTS = [(31, 24), (17, 17), (0, 31), (24, 16)]
 
 SPARKLE_TYPES = {
-    "384": {"block size": 48, "n_b": 6, "slim steps": 7, "big steps": 11},
-    "512": {"block size": 64, "n_b": 8, "slim steps": 8, "big steps": 12},
+    "384": {"block size": 48, "num_branches": 6, "slim steps": 7, "big steps": 11},
+    "512": {"block size": 64, "num_branches": 8, "slim steps": 8, "big steps": 12},
 }
 
 def sparkle(internal_state, sparkle_type, step_type):
     params = SPARKLE_TYPES[sparkle_type]
 
-    x_vals, y_vals = split_x_and_y(internal_state)
-    print(f"SPARKLE START:\n {hex_state(internal_state)=}\n{hex_x_y(x_vals)=}\n{hex_x_y(y_vals)=}")
+    print("SPARKLE START:")
+    
     for i in range(params[step_type]):
-        c = int_to_bytes(CONSTS[i%8] & FOUR_BYTE_MASK)
+        c = int_to_bytes(CONSTS[i%8] & FOUR_BYTE_MASK) # TODO: is it the upper or lower 4 bytes?
         xor_val = int_to_bytes((i % SPARKLE_MAX_I) & FOUR_BYTE_MASK)
-        xor_in_place(y_vals[0], [c])
-        xor_in_place(y_vals[1], [xor_val])
-        print(f"\nROUND {i}:\n{hex_state(internal_state)=}\n{hex_x_y(y_vals)=}")
+
+        print(f"ROUND {i}:\nbefore xor: {hex_state(internal_state)=}\n{c=}\n{xor_val=}")
+
+        for j, (c_byte, x_byte) in enumerate(zip(c, xor_val)):
+            internal_state[4 + j] ^= c_byte # y_0
+            internal_state[12 + j] ^= x_byte # y_1
+
+        print(f"after xor: {hex_state(internal_state)=}")
         
-        for j, (x, y) in enumerate(zip(x_vals, y_vals)):
-            new_x, new_y = alzette(x, y, CONSTS[i%8] & FOUR_BYTE_MASK)
+        for j in range(0, len(internal_state), 8):
+            x, y = internal_state[j:j+4], internal_state[j+4:j+8]
+            new_x, new_y = alzette(x, y, CONSTS[j%8] & FOUR_BYTE_MASK)
+
             print(f"POST ALZETTE: {hex(new_x)=}\n{hex(new_y)=}")
+
             new_x, new_y = int_to_bytes(new_x), int_to_bytes(new_y)
             for k, (byte_x, byte_y) in enumerate(zip(new_x, new_y)):
-                internal_state[j*8 + k] = byte_x
-                internal_state[j*8 + 4 + k] = byte_y
-            print(f"POST ALZETTE AND SETTING: {hex_state(internal_state)=}")
+                internal_state[j + k] = byte_x
+                internal_state[j + 4 + k] = byte_y
 
-        L(x_vals, y_vals, params['n_b'])
-        print(f"POST L FUNCTION: {params['n_b']=}\n{hex_x_y(x_vals)=}\n{hex_x_y(y_vals)=}\n{hex_state(internal_state)=}")
+        L(internal_state, params['num_branches'] // 2)
+
+        print(f"POST L FUNCTION: {params['num_branches']=}\n{hex_state(internal_state)=}")
 
 
 def alzette(x, y, const):
@@ -47,56 +55,41 @@ def alzette(x, y, const):
         x ^= const
     return x, y
 
-def M(msg, h_b):
+def feistel_round(state, half_branches):
+    print(f"IN feistel_round FUNC")
     t = 0
-    # print(len(msg), h_b, msg)
-    for i in range(0, h_b * 4, 4):
-        x_y = int.from_bytes(msg[i:i+4], byteorder="big")
-        t ^= x_y
 
-    t_x = (t >> 16) & TWO_BYTE_MASK
-    t_y = t & TWO_BYTE_MASK
+    for i in range(0, half_branches * 4, 8):
+        t ^= int.from_bytes(state[i:i+8], byteorder="little")
 
-    l_t_x = circular_rotation(t_x, -16, 32) ^ (t_x & TWO_BYTE_MASK)
-    l_t_y = circular_rotation(t_y, -16, 32) ^ (t_y & TWO_BYTE_MASK)
-    # print(hex(circular_rotation(t_x, -16, 32)), hex(l_t_x))
-    # print(hex(circular_rotation(t_y, -16, 32)), hex(l_t_y))
+    t_x = (t >> 32) & FOUR_BYTE_MASK
+    t_y = t & FOUR_BYTE_MASK
 
-    l_t_inv = int_to_bytes((l_t_y << 32) + l_t_x)
-    # print(len(l_t_inv))
+    l_t_x = circular_rotation(t_x, -16, 32) ^ t_x
+    l_t_y = circular_rotation(t_y, -16, 32) ^ t_y
+    l_t_inv = int_to_bytes((l_t_y << 32) + l_t_x, 8)
+
     output = b''
-    for i in range(0, h_b * 4, 4):
+    for i in range(0, half_branches * 2 * 4, 8):
         for j, byte in enumerate(l_t_inv):
-            if len(msg) > i + j:
-                output += bytes([byte ^ msg[i+j]])
+            if i + j < len(state):
+                output += bytes([state[i + j] ^ byte])
             else:
                 output += bytes([byte])
     return output
     
 
-def L(x_vals, y_vals, n_b):
-    t_x = bytearray([a^b^c for a, b, c in zip(x_vals[0], x_vals[1], x_vals[2])])
-    t_y = bytearray([a^b^c for a, b, c in zip(y_vals[0], y_vals[1], y_vals[2])])
-    if n_b == 8:
-        xor_in_place(t_x, [x_vals[3]])
-        xor_in_place(t_y, [y_vals[3]])
+def L(internal_state, half_branches):
+    print(f"IN L FUNC")
+    output = feistel_round(internal_state, half_branches)
+    half_way_i = len(internal_state) // 2
+    for i, byte in enumerate(output):
+        internal_state[half_way_i + i] ^= byte
 
-    t_x = int.from_bytes(t_x, byteorder="big")
-    t_y = int.from_bytes(t_y, byteorder="big")
 
-    t_x, t_y = circular_rotation(t_x ^ (t_x << 16), -16, 32), circular_rotation(t_y ^ (t_y << 16), -16, 32)
+    right = circular_rotation(int.from_bytes(internal_state[half_way_i:], "big"), -16, half_way_i * 8)
+    right = int_to_bytes(right, half_way_i)
+    left = internal_state[:half_way_i]
 
-    t_x, t_y = int_to_bytes(t_x), int_to_bytes(t_y)
-
-    half_way_i = n_b//2
-    for i in range(half_way_i, n_b):
-        xor_in_place(x_vals[i], [x_vals[i], x_vals[i-half_way_i], t_y])
-        xor_in_place(y_vals[i], [y_vals[i], y_vals[i-half_way_i], t_x])
-
-    if n_b == 8:
-        x_vals[0], x_vals[1], x_vals[2], x_vals[3], x_vals[4], x_vals[5], x_vals[6], x_vals[7] = x_vals[5], x_vals[6], x_vals[7], x_vals[4], x_vals[0], x_vals[1], x_vals[2], x_vals[3]
-        y_vals[0], y_vals[1], y_vals[2], y_vals[3], y_vals[4], y_vals[5], y_vals[6], y_vals[7] = y_vals[5], y_vals[6], y_vals[7], y_vals[4], y_vals[0], y_vals[1], y_vals[2], y_vals[3]
-    else:
-        x_vals[0], x_vals[1], x_vals[2], x_vals[3], x_vals[4], x_vals[5] = x_vals[4], x_vals[5], x_vals[3], x_vals[0], x_vals[1], x_vals[2]
-        y_vals[0], y_vals[1], y_vals[2], y_vals[3], y_vals[4], y_vals[5] = y_vals[4], y_vals[5], y_vals[3], y_vals[0], y_vals[1], y_vals[2]
-    
+    internal_state[:half_way_i] = right
+    internal_state[half_way_i:] = left
