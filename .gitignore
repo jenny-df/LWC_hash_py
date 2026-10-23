@@ -1,0 +1,5 @@
+
+# Local OS metadata and Python bytecode
+.DS_Store
+__pycache__/
+*.pyc
